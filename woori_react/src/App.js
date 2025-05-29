@@ -4,7 +4,7 @@ import KakaoMap from "./KakaoMap";
 function App() {
   return (
     <div>
-      <h1>Kakao 지도 시작하기 (React)</h1>
+      <h1>Woori 부동산</h1>
       <KakaoMap />
     </div>
   );
