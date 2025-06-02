@@ -1,15 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const mapStyle = `
-.map_wrap {position:relative;width:100%;height:800px;}
+.map_wrap {position:relative;width:100%;height:400px;}
 .title {font-weight:bold;display:block;}
 .hAddr {position:absolute;left:10px;top:10px;border-radius:2px;background:#fff;background:rgba(255,255,255,0.8);z-index:1;padding:5px;}
 #centerAddr {display:block;margin-top:2px;font-weight:normal;}
 .bAddr {padding:5px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
+.autocomplete-list {background:#fff;border:1px solid #ccc;border-radius:4px;max-height:220px;overflow-y:auto;position:absolute;z-index:10;width:260px;margin-top:2px;}
+.autocomplete-item {padding:8px 12px;cursor:pointer;}
+.autocomplete-item:hover {background:#f0f0f0;}
 `;
 
 const KAKAO_SDK_URL =
-  "//dapi.kakao.com/v2/maps/sdk.js?appkey=295d5751352cf8f70a803a503e9c93a0&autoload=false&libraries=services";
+  "//dapi.kakao.com/v2/maps/sdk.js?appkey=295d5751352cf8f70a803a503e9c93a0&autoload=false&libraries=services,places";
 
 const KakaoMap = () => {
   const mapRef = useRef(null);
@@ -19,18 +22,24 @@ const KakaoMap = () => {
   const [clickedAddr, setClickedAddr] = useState(""); // 클릭 위치 주소
   const [clickedLatLng, setClickedLatLng] = useState(""); // 클릭 위치 좌표
 
-  // 클릭 마커와 인포윈도우를 재사용(중복 생성 방지)
+  // 검색 관련 상태
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchError, setSearchError] = useState("");
+  const [autoList, setAutoList] = useState([]); // 자동완성 리스트
+  const [autoActive, setAutoActive] = useState(false);
+
+  // 마커/인포윈도우 재사용
   const clickMarkerRef = useRef(null);
   const clickInfoWindowRef = useRef(null);
+  const searchMarkerRef = useRef(null);
+  const searchInfoWindowRef = useRef(null);
 
   useEffect(() => {
-    // 1. 스크립트가 이미 있으면 window.kakao가 준비될 때까지 polling
     if (window.kakao && window.kakao.maps) {
       loadMap();
       return;
     }
 
-    // 2. 스크립트가 없으면 추가
     if (!document.getElementById("kakao-map-sdk")) {
       const script = document.createElement("script");
       script.id = "kakao-map-sdk";
@@ -39,19 +48,18 @@ const KakaoMap = () => {
       script.onload = checkAndLoadMap;
       document.head.appendChild(script);
     } else {
-      // 이미 스크립트가 있는데 window.kakao가 없으면 polling
       checkAndLoadMap();
     }
 
-    // 클린업
     return () => {
       if (clickMarkerRef.current) clickMarkerRef.current.setMap(null);
       if (clickInfoWindowRef.current) clickInfoWindowRef.current.close();
+      if (searchMarkerRef.current) searchMarkerRef.current.setMap(null);
+      if (searchInfoWindowRef.current) searchInfoWindowRef.current.close();
     };
     // eslint-disable-next-line
   }, []);
 
-  // window.kakao.maps가 준비될 때까지 polling
   const checkAndLoadMap = () => {
     if (window.kakao && window.kakao.maps && window.kakao.maps.load) {
       loadMap();
@@ -60,11 +68,10 @@ const KakaoMap = () => {
     }
   };
 
-  // 카카오맵 로드 및 이벤트 등록
   const loadMap = () => {
     window.kakao.maps.load(() => {
       const container = mapRef.current;
-      if (!container) return; // 혹시나 null일 때 방지
+      if (!container) return;
 
       const options = {
         center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
@@ -73,15 +80,12 @@ const KakaoMap = () => {
       const map = new window.kakao.maps.Map(container, options);
       mapInstance.current = map;
 
-      // 지도 중심 주소 최초 표시
       updateCenterAddr(map);
 
-      // 지도 중심/레벨 변경시 중심 주소 갱신
       window.kakao.maps.event.addListener(map, "idle", function () {
         updateCenterAddr(map);
       });
 
-      // 지도 클릭 시 마커+주소 인포윈도우 표시
       window.kakao.maps.event.addListener(map, "click", function (mouseEvent) {
         setClickedLatLng(
           `위도: ${mouseEvent.latLng.getLat()}, 경도: ${mouseEvent.latLng.getLng()}`
@@ -127,7 +131,6 @@ const KakaoMap = () => {
           detailAddr += `<div>지번 주소 : ${result[0].address.address_name}</div>`;
           const content = `<div class="bAddr"><span class="title">주소정보</span>${detailAddr}</div>`;
 
-          // 마커/인포윈도우 재사용
           if (!clickMarkerRef.current) {
             clickMarkerRef.current = new window.kakao.maps.Marker();
           }
@@ -140,7 +143,6 @@ const KakaoMap = () => {
           clickInfoWindowRef.current.setContent(content);
           clickInfoWindowRef.current.open(map, clickMarkerRef.current);
 
-          // 클릭 주소 React state에도 저장(원하면 화면에 표시)
           setClickedAddr(
             (!!result[0].road_address
               ? `도로명주소: ${result[0].road_address.address_name} `
@@ -151,9 +153,147 @@ const KakaoMap = () => {
     );
   };
 
+  // 주소/키워드로 장소 검색 (엔터/버튼)
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearchError("");
+    setAutoActive(false);
+    if (!searchKeyword.trim()) {
+      setSearchError("검색어를 입력하세요.");
+      return;
+    }
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services || !window.kakao.maps.services.Places) {
+      setSearchError("카카오맵 로딩 중입니다. 잠시 후 다시 시도하세요.");
+      return;
+    }
+
+    const map = mapInstance.current;
+    const ps = new window.kakao.maps.services.Places();
+
+    if (searchMarkerRef.current) searchMarkerRef.current.setMap(null);
+    if (searchInfoWindowRef.current) searchInfoWindowRef.current.close();
+
+    ps.keywordSearch(searchKeyword, function (data, status) {
+      if (status === window.kakao.maps.services.Status.OK && data.length > 0) {
+        const place = data[0];
+        const coords = new window.kakao.maps.LatLng(place.y, place.x);
+
+        if (!searchMarkerRef.current) {
+          searchMarkerRef.current = new window.kakao.maps.Marker();
+        }
+        searchMarkerRef.current.setPosition(coords);
+        searchMarkerRef.current.setMap(map);
+
+        if (!searchInfoWindowRef.current) {
+          searchInfoWindowRef.current = new window.kakao.maps.InfoWindow({ zindex: 2 });
+        }
+        searchInfoWindowRef.current.setContent(
+          `<div style="padding:8px 12px;"><b>${place.place_name}</b><br/>${place.road_address_name || place.address_name}</div>`
+        );
+        searchInfoWindowRef.current.open(map, searchMarkerRef.current);
+
+        map.setCenter(coords);
+      } else {
+        setSearchError("검색 결과가 없습니다.");
+      }
+    });
+  };
+
+  // 자동완성: 입력할 때마다 연관 장소 리스트 검색
+  useEffect(() => {
+    if (
+      !searchKeyword.trim() ||
+      !window.kakao ||
+      !window.kakao.maps ||
+      !window.kakao.maps.services ||
+      !window.kakao.maps.services.Places
+    ) {
+      setAutoList([]);
+      return;
+    }
+    // 너무 짧은 검색어는 자동완성 안 함
+    if (searchKeyword.trim().length < 2) {
+      setAutoList([]);
+      return;
+    }
+
+    const ps = new window.kakao.maps.services.Places();
+    ps.keywordSearch(searchKeyword, function (data, status) {
+      if (status === window.kakao.maps.services.Status.OK) {
+        setAutoList(data.slice(0, 7)); // 최대 7개만
+      } else {
+        setAutoList([]);
+      }
+    });
+  }, [searchKeyword]);
+
+  // 자동완성 아이템 클릭 시 지도 이동 + 마커 표시
+  const handleAutoItemClick = (place) => {
+    setSearchKeyword(place.place_name);
+    setAutoActive(false);
+    setSearchError("");
+    if (!window.kakao || !window.kakao.maps) return;
+    const map = mapInstance.current;
+    const coords = new window.kakao.maps.LatLng(place.y, place.x);
+
+    if (searchMarkerRef.current) searchMarkerRef.current.setMap(null);
+    if (!searchMarkerRef.current) searchMarkerRef.current = new window.kakao.maps.Marker();
+    searchMarkerRef.current.setPosition(coords);
+    searchMarkerRef.current.setMap(map);
+
+    if (!searchInfoWindowRef.current) {
+      searchInfoWindowRef.current = new window.kakao.maps.InfoWindow({ zindex: 2 });
+    }
+    searchInfoWindowRef.current.setContent(
+      `<div style="padding:8px 12px;"><b>${place.place_name}</b><br/>${place.road_address_name || place.address_name}</div>`
+    );
+    searchInfoWindowRef.current.open(map, searchMarkerRef.current);
+
+    map.setCenter(coords);
+  };
+
   return (
     <div>
       <style>{mapStyle}</style>
+      <div style={{ position: "relative", marginBottom: "10px" }}>
+        <form onSubmit={handleSearch} autoComplete="off">
+          <input
+            type="text"
+            value={searchKeyword}
+            onChange={(e) => {
+              setSearchKeyword(e.target.value);
+              setAutoActive(true);
+            }}
+            placeholder="주소 또는 건물명을 입력하세요"
+            style={{ width: "260px", padding: "6px", borderRadius: "4px", border: "1px solid #ccc" }}
+            onFocus={() => setAutoActive(true)}
+            onBlur={() => setTimeout(() => setAutoActive(false), 200)} // blur 후에도 클릭 가능하게 약간 딜레이
+          />
+          <button type="submit" style={{ marginLeft: "8px", padding: "6px 16px" }}>
+            검색
+          </button>
+          {searchError && (
+            <span style={{ color: "red", marginLeft: "16px" }}>{searchError}</span>
+          )}
+        </form>
+        {autoActive && autoList.length > 0 && (
+          <div className="autocomplete-list">
+            {autoList.map((place) => (
+              <div
+                key={place.id}
+                className="autocomplete-item"
+                onMouseDown={() => handleAutoItemClick(place)}
+              >
+                <b>{place.place_name}</b>
+                <br />
+                <span style={{ fontSize: "12px", color: "#888" }}>
+                  {place.road_address_name || place.address_name}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="map_wrap">
         <div
           ref={mapRef}
