@@ -1,260 +1,187 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const overlayStyle = `
-.wrap {position: absolute;left: 0;bottom: 40px;width: 288px;height: 132px;margin-left: -144px;text-align: left;overflow: hidden;font-size: 12px;font-family: 'Malgun Gothic', dotum, '돋움', sans-serif;line-height: 1.5;}
-.wrap * {padding: 0;margin: 0;}
-.wrap .info {width: 286px;height: 120px;border-radius: 5px;border-bottom: 2px solid #ccc;border-right: 1px solid #ccc;overflow: hidden;background: #fff;}
-.wrap .info:nth-child(1) {border: 0;box-shadow: 0px 1px 2px #888;}
-.info .title {padding: 5px 0 0 10px;height: 30px;background: #eee;border-bottom: 1px solid #ddd;font-size: 18px;font-weight: bold;}
-.info .close {position: absolute;top: 10px;right: 10px;color: #888;width: 17px;height: 17px;background: url('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/overlay_close.png');}
-.info .close:hover {cursor: pointer;}
-.info .body {position: relative;overflow: hidden;}
-.info .desc {position: relative;margin: 13px 0 0 90px;height: 75px;}
-.desc .ellipsis {overflow: hidden;text-overflow: ellipsis;white-space: nowrap;}
-.desc .jibun {font-size: 11px;color: #888;margin-top: -2px;}
-.info .img {position: absolute;top: 6px;left: 5px;width: 73px;height: 71px;border: 1px solid #ddd;color: #888;overflow: hidden;}
-.info:after {content: '';position: absolute;margin-left: -12px;left: 50%;bottom: 0;width: 22px;height: 12px;background: url('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/vertex_white.png')}
-.info .link {color: #5085BB;}
+const mapStyle = `
+.map_wrap {position:relative;width:100%;height:800px;}
+.title {font-weight:bold;display:block;}
+.hAddr {position:absolute;left:10px;top:10px;border-radius:2px;background:#fff;background:rgba(255,255,255,0.8);z-index:1;padding:5px;}
+#centerAddr {display:block;margin-top:2px;font-weight:normal;}
+.bAddr {padding:5px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;}
 `;
 
-const getCustomOverlayContent = (onClose) => {
-  // DOM element로 생성 (닫기 버튼 이벤트를 위해)
-  const div = document.createElement("div");
-  div.className = "wrap";
-  div.innerHTML = `
-    <div class="info">
-      <div class="title">
-        카카오 스페이스닷원
-        <div class="close" title="닫기"></div>
-      </div>
-      <div class="body">
-        <div class="img">
-          <img src="https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/thumnail.png" width="73" height="70" alt=""/>
-        </div>
-        <div class="desc">
-          <div class="ellipsis">제주특별자치도 제주시 첨단로 242</div>
-          <div class="jibun ellipsis">(우) 63309 (지번) 영평동 2181</div>
-          <div><a href="https://www.kakaocorp.com/main" target="_blank" class="link">홈페이지</a></div>
-        </div>
-      </div>
-    </div>
-  `;
-  div.querySelector(".close").onclick = onClose;
-  return div;
-};
+const KAKAO_SDK_URL =
+  "//dapi.kakao.com/v2/maps/sdk.js?appkey=295d5751352cf8f70a803a503e9c93a0&autoload=false&libraries=services";
 
 const KakaoMap = () => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
-  const [mapLevel, setMapLevel] = useState(3);
-  const [mapInfo, setMapInfo] = useState("");
-  const [clickedLatLng, setClickedLatLng] = useState("");
-  const markersRef = useRef([]); // [{ marker, overlay }]
+
+  const [centerAddr, setCenterAddr] = useState(""); // 지도 중심 주소
+  const [clickedAddr, setClickedAddr] = useState(""); // 클릭 위치 주소
+  const [clickedLatLng, setClickedLatLng] = useState(""); // 클릭 위치 좌표
+
+  // 클릭 마커와 인포윈도우를 재사용(중복 생성 방지)
+  const clickMarkerRef = useRef(null);
+  const clickInfoWindowRef = useRef(null);
 
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src =
-      "//dapi.kakao.com/v2/maps/sdk.js?appkey=295d5751352cf8f70a803a503e9c93a0&autoload=false";
-    script.async = true;
+    // 1. 스크립트가 이미 있으면 window.kakao가 준비될 때까지 polling
+    if (window.kakao && window.kakao.maps) {
+      loadMap();
+      return;
+    }
 
-    script.onload = () => {
-      window.kakao.maps.load(() => {
-        const container = mapRef.current;
-        const options = {
-          center: new window.kakao.maps.LatLng(33.450701, 126.570667),
-          level: 3,
-        };
-        const map = new window.kakao.maps.Map(container, options);
-        mapInstance.current = map;
+    // 2. 스크립트가 없으면 추가
+    if (!document.getElementById("kakao-map-sdk")) {
+      const script = document.createElement("script");
+      script.id = "kakao-map-sdk";
+      script.src = KAKAO_SDK_URL;
+      script.async = true;
+      script.onload = checkAndLoadMap;
+      document.head.appendChild(script);
+    } else {
+      // 이미 스크립트가 있는데 window.kakao가 없으면 polling
+      checkAndLoadMap();
+    }
 
-        // 지도 타입 컨트롤
-        const mapTypeControl = new window.kakao.maps.MapTypeControl();
-        map.addControl(mapTypeControl, window.kakao.maps.ControlPosition.TOPRIGHT);
-
-        // 줌 컨트롤
-        const zoomControl = new window.kakao.maps.ZoomControl();
-        map.addControl(zoomControl, window.kakao.maps.ControlPosition.RIGHT);
-
-        // 마커 배열 초기화
-        markersRef.current = [];
-
-        // 최초 마커 1개 추가
-        addMarker(new window.kakao.maps.LatLng(33.450701, 126.570667), map);
-
-        // 지도 클릭 시 마커 추가
-        window.kakao.maps.event.addListener(map, "click", function (mouseEvent) {
-          addMarker(mouseEvent.latLng, map);
-          setClickedLatLng(
-            `클릭한 위치의 위도는 ${mouseEvent.latLng.getLat()} 이고, 경도는 ${mouseEvent.latLng.getLng()} 입니다`
-          );
-        });
-
-        // 지도 레벨 변경 이벤트 등록
-        window.kakao.maps.event.addListener(map, "zoom_changed", () => {
-          setMapLevel(map.getLevel());
-        });
-
-        setMapLevel(map.getLevel());
-      });
-    };
-
-    document.head.appendChild(script);
-
+    // 클린업
     return () => {
-      document.head.removeChild(script);
-      markersRef.current = [];
+      if (clickMarkerRef.current) clickMarkerRef.current.setMap(null);
+      if (clickInfoWindowRef.current) clickInfoWindowRef.current.close();
     };
     // eslint-disable-next-line
   }, []);
 
-  // 마커 추가 함수 (마커 클릭 시 커스텀 오버레이)
-  const addMarker = (position, map) => {
-    const marker = new window.kakao.maps.Marker({
-      position: position,
+  // window.kakao.maps가 준비될 때까지 polling
+  const checkAndLoadMap = () => {
+    if (window.kakao && window.kakao.maps && window.kakao.maps.load) {
+      loadMap();
+    } else {
+      setTimeout(checkAndLoadMap, 100);
+    }
+  };
+
+  // 카카오맵 로드 및 이벤트 등록
+  const loadMap = () => {
+    window.kakao.maps.load(() => {
+      const container = mapRef.current;
+      if (!container) return; // 혹시나 null일 때 방지
+
+      const options = {
+        center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
+        level: 3,
+      };
+      const map = new window.kakao.maps.Map(container, options);
+      mapInstance.current = map;
+
+      // 지도 중심 주소 최초 표시
+      updateCenterAddr(map);
+
+      // 지도 중심/레벨 변경시 중심 주소 갱신
+      window.kakao.maps.event.addListener(map, "idle", function () {
+        updateCenterAddr(map);
+      });
+
+      // 지도 클릭 시 마커+주소 인포윈도우 표시
+      window.kakao.maps.event.addListener(map, "click", function (mouseEvent) {
+        setClickedLatLng(
+          `위도: ${mouseEvent.latLng.getLat()}, 경도: ${mouseEvent.latLng.getLng()}`
+        );
+        showClickedAddress(map, mouseEvent.latLng);
+      });
     });
-    marker.setMap(map);
-
-    // 커스텀 오버레이 생성 (닫기 버튼 이벤트 등록)
-    let overlay = null;
-    const content = getCustomOverlayContent(() => {
-      overlay.setMap(null);
-    });
-    overlay = new window.kakao.maps.CustomOverlay({
-      content,
-      position: position,
-      yAnchor: 1.4, // 말풍선 화살표 위치 조정
-    });
-
-    // 마커 클릭 시 오버레이 표시 (중복 방지: 모든 오버레이 닫기)
-    window.kakao.maps.event.addListener(marker, "click", function () {
-      markersRef.current.forEach(({ overlay: o }) => o.setMap(null));
-      overlay.setMap(map);
-    });
-
-    markersRef.current.push({ marker, overlay });
   };
 
-  // 모든 마커 지도에 표시
-  const showMarkers = () => {
-    if (!mapInstance.current) return;
-    markersRef.current.forEach(({ marker }) => marker.setMap(mapInstance.current));
-  };
-
-  // 모든 마커 지도에서 감추기 + 오버레이 닫기
-  const hideMarkers = () => {
-    markersRef.current.forEach(({ marker, overlay }) => {
-      marker.setMap(null);
-      overlay.setMap(null);
-    });
-  };
-
-  // 지도 중심좌표 이동 (setCenter)
-  const setCenter = () => {
-    if (!mapInstance.current) return;
-    const moveLatLon = new window.kakao.maps.LatLng(33.452613, 126.570888);
-    mapInstance.current.setCenter(moveLatLon);
-  };
-
-  // 지도 중심좌표 부드럽게 이동 (panTo)
-  const panTo = () => {
-    if (!mapInstance.current) return;
-    const moveLatLon = new window.kakao.maps.LatLng(33.450580, 126.574942);
-    mapInstance.current.panTo(moveLatLon);
-  };
-
-  // 지도 레벨 -1 (확대)
-  const zoomIn = () => {
-    if (!mapInstance.current) return;
-    const level = mapInstance.current.getLevel();
-    mapInstance.current.setLevel(level - 1);
-    setMapLevel(level - 1);
-  };
-
-  // 지도 레벨 +1 (축소)
-  const zoomOut = () => {
-    if (!mapInstance.current) return;
-    const level = mapInstance.current.getLevel();
-    mapInstance.current.setLevel(level + 1);
-    setMapLevel(level + 1);
-  };
-
-  // 지도 정보 얻어오기
-  const getInfo = () => {
-    if (!mapInstance.current) return;
-    const map = mapInstance.current;
+  // 지도 중심좌표의 행정동 주소를 가져와서 표시
+  const updateCenterAddr = (map) => {
+    if (!window.kakao.maps.services) return;
+    const geocoder = new window.kakao.maps.services.Geocoder();
     const center = map.getCenter();
-    const level = map.getLevel();
-    const mapTypeId = map.getMapTypeId();
-    const bounds = map.getBounds();
-    const swLatLng = bounds.getSouthWest();
-    const neLatLng = bounds.getNorthEast();
+    geocoder.coord2RegionCode(
+      center.getLng(),
+      center.getLat(),
+      function (result, status) {
+        if (status === window.kakao.maps.services.Status.OK) {
+          for (let i = 0; i < result.length; i++) {
+            if (result[i].region_type === "H") {
+              setCenterAddr(result[i].address_name);
+              break;
+            }
+          }
+        }
+      }
+    );
+  };
 
-    let message = `지도 중심좌표는 위도 ${center.getLat()}, <br>`;
-    message += `경도 ${center.getLng()} 이고 <br>`;
-    message += `지도 레벨은 ${level} 입니다 <br><br>`;
-    message += `지도 타입은 ${mapTypeId} 이고 <br>`;
-    message += `지도의 남서쪽 좌표는 ${swLatLng.getLat()}, ${swLatLng.getLng()} 이고 <br>`;
-    message += `북동쪽 좌표는 ${neLatLng.getLat()}, ${neLatLng.getLng()} 입니다`;
+  // 클릭 위치의 상세 주소를 가져와서 마커+인포윈도우 표시
+  const showClickedAddress = (map, latLng) => {
+    if (!window.kakao.maps.services) return;
+    const geocoder = new window.kakao.maps.services.Geocoder();
+    geocoder.coord2Address(
+      latLng.getLng(),
+      latLng.getLat(),
+      function (result, status) {
+        if (status === window.kakao.maps.services.Status.OK) {
+          let detailAddr = !!result[0].road_address
+            ? `<div>도로명주소 : ${result[0].road_address.address_name}</div>`
+            : "";
+          detailAddr += `<div>지번 주소 : ${result[0].address.address_name}</div>`;
+          const content = `<div class="bAddr"><span class="title">주소정보</span>${detailAddr}</div>`;
 
-    setMapInfo(message);
+          // 마커/인포윈도우 재사용
+          if (!clickMarkerRef.current) {
+            clickMarkerRef.current = new window.kakao.maps.Marker();
+          }
+          if (!clickInfoWindowRef.current) {
+            clickInfoWindowRef.current = new window.kakao.maps.InfoWindow({ zindex: 1 });
+          }
+          clickMarkerRef.current.setPosition(latLng);
+          clickMarkerRef.current.setMap(map);
+
+          clickInfoWindowRef.current.setContent(content);
+          clickInfoWindowRef.current.open(map, clickMarkerRef.current);
+
+          // 클릭 주소 React state에도 저장(원하면 화면에 표시)
+          setClickedAddr(
+            (!!result[0].road_address
+              ? `도로명주소: ${result[0].road_address.address_name} `
+              : "") + `지번주소: ${result[0].address.address_name}`
+          );
+        }
+      }
+    );
   };
 
   return (
     <div>
-      <style>{overlayStyle}</style>
+      <style>{mapStyle}</style>
+      <div className="map_wrap">
+        <div
+          ref={mapRef}
+          style={{
+            width: "100%",
+            height: "100%",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        />
+        <div className="hAddr">
+          <span className="title">지도 중심 행정동 주소</span>
+          <span id="centerAddr">{centerAddr}</span>
+        </div>
+      </div>
       <div
-        ref={mapRef}
-        style={{ width: "100%", height: "350px" }}
-      ></div>
-      <p>
-        <button onClick={hideMarkers}>마커 감추기</button>
-        <button onClick={showMarkers} style={{ marginLeft: "10px" }}>
-          마커 보이기
-        </button>
-      </p>
-      <em>
-        클릭한 위치에 마커가 표시되고, <b>마커를 클릭하면 닫기버튼이 있는 커스텀 오버레이가 뜹니다!</b>
-      </em>
-      <div
-        id="clickLatlng"
         style={{
-          margin: "10px 0",
+          margin: "12px 0",
           background: "#f0f0f0",
           padding: "8px",
           borderRadius: "4px",
           minHeight: "24px",
         }}
       >
-        {clickedLatLng}
+        <b>클릭한 위치 좌표:</b> {clickedLatLng}
+        <br />
+        <b>클릭한 위치 주소:</b> {clickedAddr}
       </div>
-      <p>
-        <button onClick={setCenter}>지도 중심좌표 이동시키기</button>
-        <button onClick={panTo} style={{ marginLeft: "10px" }}>
-          지도 중심좌표 부드럽게 이동시키기
-        </button>
-      </p>
-      <p>
-        <button onClick={zoomIn}>지도레벨 - 1</button>
-        <button onClick={zoomOut} style={{ marginLeft: "10px" }}>
-          지도레벨 + 1
-        </button>
-        <span style={{ marginLeft: "20px" }}>
-          현재 지도 레벨은 {mapLevel} 레벨 입니다.
-        </span>
-      </p>
-      <p>
-        <button onClick={getInfo}>지도 정보 얻어오기</button>
-      </p>
-      <div
-        style={{
-          marginTop: "10px",
-          background: "#f8f8f8",
-          padding: "10px",
-          borderRadius: "4px",
-          minHeight: "50px",
-        }}
-        dangerouslySetInnerHTML={{ __html: mapInfo }}
-      />
     </div>
   );
 };
