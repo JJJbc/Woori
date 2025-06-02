@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const mapStyle = `
-.map_wrap {position:relative;width:100%;height:400px;}
+.map_wrap {position:relative;width:100%;height:700px;}
 .title {font-weight:bold;display:block;}
 .hAddr {position:absolute;left:10px;top:10px;border-radius:2px;background:#fff;background:rgba(255,255,255,0.8);z-index:1;padding:5px;}
 #centerAddr {display:block;margin-top:2px;font-weight:normal;}
