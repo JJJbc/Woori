@@ -5,7 +5,7 @@ import SearchBar from '../components/Search/SearchBar';
 import AutoComplete from '../components/Search/AutoComplete';
 import AddressDisplay from '../components/Address/AddressDisplay';
 
-const INITIAL_CENTER = { lat: 37.45344955498, lng: 126.90018635707 }; // 시흥대로59길 9
+const INITIAL_CENTER = { lat: 37.45344955498, lng: 126.90018635707 };
 
 const MapPage = () => {
   const mapRef = useRef(null);
@@ -16,13 +16,21 @@ const MapPage = () => {
   const [searchError, setSearchError] = useState('');
   const [autoList, setAutoList] = useState([]);
   const [autoActive, setAutoActive] = useState(false);
-  const [markerPos, setMarkerPos] = useState(INITIAL_CENTER);
-  const [markerContent, setMarkerContent] =
-    useState('서울 금천구 시흥대로59길 9');
 
-  // 지도 로드 후 최초 1회만 mapObj 설정
+  // 여러 마커/인포윈도우 관리
+  const [markers, setMarkers] = useState([
+    {
+      id: Date.now(),
+      lat: INITIAL_CENTER.lat,
+      lng: INITIAL_CENTER.lng,
+      info: '서울 금천구 시흥대로59길 9',
+      open: true,
+    },
+  ]);
+
+  // 지도 로드 후 최초 1회만 mapObj 설정 및 이벤트 등록
   const handleMapLoad = useCallback((map) => {
-    setMapObj((prev) => prev || map); // 이미 있으면 다시 할당하지 않음
+    setMapObj((prev) => prev || map);
 
     // 중심 주소 갱신 함수
     const updateCenterAddr = () => {
@@ -46,35 +54,53 @@ const MapPage = () => {
     updateCenterAddr();
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
 
-    // 지도 클릭 시 마커 이동 및 주소 표시
+    // 지도 클릭 시 마커 추가
     window.kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-      const latlng = mouseEvent.latLng;
-      setMarkerPos({ lat: latlng.getLat(), lng: latlng.getLng() });
-
-      // 주소 변환(Geocoder)
+      const lat = mouseEvent.latLng.getLat();
+      const lng = mouseEvent.latLng.getLng();
       const geocoder = new window.kakao.maps.services.Geocoder();
-      geocoder.coord2Address(
-        latlng.getLng(),
-        latlng.getLat(),
-        function (result, status) {
-          if (status === window.kakao.maps.services.Status.OK) {
-            const road = result[0].road_address
-              ? `도로명주소: ${result[0].road_address.address_name}`
-              : '';
-            const jibun = result[0].address
-              ? `지번주소: ${result[0].address.address_name}`
-              : '';
-            const addr = [road, jibun].filter(Boolean).join('<br/>');
-            setClickedAddress([road, jibun].filter(Boolean).join(' / '));
-            setMarkerContent(addr);
-          } else {
-            setClickedAddress('주소를 찾을 수 없습니다.');
-            setMarkerContent('주소를 찾을 수 없습니다.');
-          }
+      geocoder.coord2Address(lng, lat, function (result, status) {
+        let info = '';
+        if (status === window.kakao.maps.services.Status.OK) {
+          const road = result[0].road_address
+            ? `도로명주소: ${result[0].road_address.address_name}`
+            : '';
+          const jibun = result[0].address
+            ? `지번주소: ${result[0].address.address_name}`
+            : '';
+          info = [road, jibun].filter(Boolean).join('<br/>');
+          setClickedAddress([road, jibun].filter(Boolean).join(' / '));
+        } else {
+          info = '주소를 찾을 수 없습니다.';
+          setClickedAddress('주소를 찾을 수 없습니다.');
         }
-      );
+        setMarkers((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            lat,
+            lng,
+            info,
+            open: true,
+          },
+        ]);
+      });
     });
   }, []);
+
+  // 마커 클릭 시 인포윈도우 열기
+  const handleMarkerClick = (id) => {
+    setMarkers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, open: true } : m))
+    );
+  };
+
+  // 인포윈도우 X버튼 클릭 시 닫기
+  const handleInfoClose = (id) => {
+    setMarkers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, open: false } : m))
+    );
+  };
 
   // 검색 실행 함수
   const handleSearch = (e) => {
@@ -98,7 +124,6 @@ const MapPage = () => {
       if (status === window.kakao.maps.services.Status.OK && data.length > 0) {
         const place = data[0];
         const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
-        setMarkerPos(coords);
         mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
         const addr = `${place.place_name}<br/>${
           place.road_address_name || place.address_name
@@ -108,7 +133,16 @@ const MapPage = () => {
             place.road_address_name || place.address_name
           }`
         );
-        setMarkerContent(addr);
+        setMarkers((prev) => [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            lat: coords.lat,
+            lng: coords.lng,
+            info: addr,
+            open: true,
+          },
+        ]);
       } else {
         setSearchError('검색 결과가 없습니다.');
       }
@@ -149,7 +183,6 @@ const MapPage = () => {
       return;
     if (!mapObj) return;
     const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
-    setMarkerPos(coords);
     mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
     const addr = `${place.place_name}<br/>${
       place.road_address_name || place.address_name
@@ -157,7 +190,16 @@ const MapPage = () => {
     setClickedAddress(
       `${place.place_name} / ${place.road_address_name || place.address_name}`
     );
-    setMarkerContent(addr);
+    setMarkers((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        lat: coords.lat,
+        lng: coords.lng,
+        info: addr,
+        open: true,
+      },
+    ]);
   };
 
   // "금천구로 이동" 버튼 클릭 시
@@ -167,10 +209,18 @@ const MapPage = () => {
     if (!mapObj) return;
     const lat = 37.45344955498;
     const lng = 126.90018635707;
-    setMarkerPos({ lat, lng });
     mapObj.setCenter(new window.kakao.maps.LatLng(lat, lng));
     setClickedAddress('서울 금천구 시흥대로59길 9');
-    setMarkerContent('서울 금천구 시흥대로59길 9');
+    setMarkers((prev) => [
+      ...prev,
+      {
+        id: Date.now() + Math.random(),
+        lat,
+        lng,
+        info: '서울 금천구 시흥대로59길 9',
+        open: true,
+      },
+    ]);
   };
 
   return (
@@ -197,14 +247,21 @@ const MapPage = () => {
           center={INITIAL_CENTER}
           onMapLoad={handleMapLoad}
         />
-        {mapObj && (
-          <MarkerInfo
-            map={mapObj}
-            lat={markerPos.lat}
-            lng={markerPos.lng}
-            content={`<div style="padding:8px 12px;">${markerContent}</div>`}
-          />
-        )}
+        {mapObj &&
+          markers.map((m) => (
+            <MarkerInfo
+              key={m.id}
+              id={m.id}
+              map={mapObj}
+              lat={m.lat}
+              lng={m.lng}
+              info={m.info}
+              open={m.open}
+              onMarkerClick={() => handleMarkerClick(m.id)}
+              onInfoClose={() => handleInfoClose(m.id)}
+              color="red" // 점 색상
+            />
+          ))}
         <AddressDisplay
           centerAddr={centerAddr}
           clickedAddress={clickedAddress}
