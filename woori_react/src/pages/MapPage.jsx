@@ -223,6 +223,26 @@ const MapPage = () => {
     ]);
   };
 
+  // 8x2 표 HTML 생성 함수
+  const makeTableHTML = () => {
+    let rows = '';
+    for (let i = 1; i <= 8; i++) {
+      rows += `
+      <tr>
+        <td style="width:32px;height:20px;">${i}</td>
+        <td style="width:32px;height:20px;">${i + 10}</td>
+      </tr>
+    `;
+    }
+    return `
+    <table border="1" style="border-collapse:collapse; margin-top:8px;">
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+  };
+
   return (
     <div>
       <SearchBar
@@ -248,20 +268,29 @@ const MapPage = () => {
           onMapLoad={handleMapLoad}
         />
         {mapObj &&
-          markers.map((m) => (
-            <MarkerInfo
-              key={m.id}
-              id={m.id}
-              map={mapObj}
-              lat={m.lat}
-              lng={m.lng}
-              info={m.info}
-              open={m.open}
-              onMarkerClick={() => handleMarkerClick(m.id)}
-              onInfoClose={() => handleInfoClose(m.id)}
-              color="red" // 점 색상
-            />
-          ))}
+          markers.map((m) => {
+            // 주소와 표를 content로 합침
+            const content = `
+              <div style="padding:8px 12px;">
+                ${m.info}
+                ${makeTableHTML()}
+              </div>
+            `;
+            return (
+              <MarkerInfo
+                key={m.id}
+                id={m.id}
+                map={mapObj}
+                lat={m.lat}
+                lng={m.lng}
+                info={content}
+                open={m.open}
+                onMarkerClick={() => handleMarkerClick(m.id)}
+                onInfoClose={() => handleInfoClose(m.id)}
+                color="red"
+              />
+            );
+          })}
         <AddressDisplay
           centerAddr={centerAddr}
           clickedAddress={clickedAddress}

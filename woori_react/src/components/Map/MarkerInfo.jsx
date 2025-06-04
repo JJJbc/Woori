@@ -31,28 +31,14 @@ const MarkerInfo = ({
 
     let infoWindow;
     if (open) {
-      // content를 HTMLElement로 만듦
-      const contentDiv = document.createElement('div');
-      contentDiv.style.padding = '8px 12px';
-      contentDiv.style.position = 'relative';
-      contentDiv.innerHTML = info;
-
-      const closeBtn = document.createElement('span');
-      closeBtn.textContent = 'X';
-      closeBtn.style.position = 'absolute';
-      closeBtn.style.top = '4px';
-      closeBtn.style.right = '8px';
-      closeBtn.style.cursor = 'pointer';
-      closeBtn.style.fontWeight = 'bold';
-      closeBtn.onclick = onInfoClose;
-
-      contentDiv.appendChild(closeBtn);
-
       infoWindow = new window.kakao.maps.InfoWindow({
-        content: contentDiv,
-        removable: false, // X버튼 직접 구현
+        content: info, // 주소+표 HTML 문자열
+        removable: true,
       });
       infoWindow.open(map, marker);
+
+      // X버튼 클릭 시 onInfoClose 호출
+      window.kakao.maps.event.addListener(infoWindow, 'close', onInfoClose);
     }
 
     return () => {
