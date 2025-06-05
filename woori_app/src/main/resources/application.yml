@@ -3,7 +3,7 @@ spring:
     name: woori-app
   data:
     mongodb:
-      uri: mongodb://localhost:27017/woori
+      uri: mongodb://woori:js8541181!@localhost:27018/woori?authSource=woori
 
 server:
   port: 8080
