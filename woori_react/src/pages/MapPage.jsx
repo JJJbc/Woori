@@ -4,6 +4,7 @@ import MarkerInfo from '../components/Map/MarkerInfo';
 import SearchBar from '../components/Search/SearchBar';
 import AutoComplete from '../components/Search/AutoComplete';
 import AddressDisplay from '../components/Address/AddressDisplay';
+import UnitModal from '../components/Map/UnitModal';
 
 const INITIAL_CENTER = { lat: 37.45344955498, lng: 126.90018635707 };
 
@@ -17,16 +18,40 @@ const MapPage = () => {
   const [autoList, setAutoList] = useState([]);
   const [autoActive, setAutoActive] = useState(false);
 
-  // 여러 마커/인포윈도우 관리
+  // 마커별 호수(유닛) 데이터 포함
   const [markers, setMarkers] = useState([
     {
       id: Date.now(),
       lat: INITIAL_CENTER.lat,
       lng: INITIAL_CENTER.lng,
-      info: '서울 금천구 시흥대로59길 9',
+      address: '서울 금천구 시흥대로59길 9',
+      units: [{ unitNo: '1502' }],
       open: true,
     },
   ]);
+
+  // 모달 상태
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState(null);
+  const [unitData, setUnitData] = useState(null);
+
+  // 모달 열기
+  const handleUnitClick = (unitNo) => {
+    setSelectedUnit(unitNo);
+    setModalOpen(true);
+    setUnitData({
+      tenant: '홍길동',
+      area: '84㎡',
+      etc: '입주일: 2024-01-01',
+    });
+  };
+
+  // 모달 닫기
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setSelectedUnit(null);
+    setUnitData(null);
+  };
 
   // 지도 로드 후 최초 1회만 mapObj 설정 및 이벤트 등록
   const handleMapLoad = useCallback((map) => {
@@ -54,13 +79,13 @@ const MapPage = () => {
     updateCenterAddr();
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
 
-    // 지도 클릭 시 마커 추가
+    // 지도 클릭 시 마커 추가 (units는 예시로 추가)
     window.kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
       const lat = mouseEvent.latLng.getLat();
       const lng = mouseEvent.latLng.getLng();
       const geocoder = new window.kakao.maps.services.Geocoder();
       geocoder.coord2Address(lng, lat, function (result, status) {
-        let info = '';
+        let address = '';
         if (status === window.kakao.maps.services.Status.OK) {
           const road = result[0].road_address
             ? `도로명주소: ${result[0].road_address.address_name}`
@@ -68,10 +93,10 @@ const MapPage = () => {
           const jibun = result[0].address
             ? `지번주소: ${result[0].address.address_name}`
             : '';
-          info = [road, jibun].filter(Boolean).join('<br/>');
+          address = [road, jibun].filter(Boolean).join('<br/>');
           setClickedAddress([road, jibun].filter(Boolean).join(' / '));
         } else {
-          info = '주소를 찾을 수 없습니다.';
+          address = '주소를 찾을 수 없습니다.';
           setClickedAddress('주소를 찾을 수 없습니다.');
         }
         setMarkers((prev) => [
@@ -80,7 +105,8 @@ const MapPage = () => {
             id: Date.now() + Math.random(),
             lat,
             lng,
-            info,
+            address,
+            units: [{ unitNo: '1502' }],
             open: true,
           },
         ]);
@@ -125,7 +151,7 @@ const MapPage = () => {
         const place = data[0];
         const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
         mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
-        const addr = `${place.place_name}<br/>${
+        const address = `${place.place_name}<br/>${
           place.road_address_name || place.address_name
         }`;
         setClickedAddress(
@@ -139,7 +165,8 @@ const MapPage = () => {
             id: Date.now() + Math.random(),
             lat: coords.lat,
             lng: coords.lng,
-            info: addr,
+            address,
+            units: [{ unitNo: '1502' }],
             open: true,
           },
         ]);
@@ -184,7 +211,7 @@ const MapPage = () => {
     if (!mapObj) return;
     const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
     mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
-    const addr = `${place.place_name}<br/>${
+    const address = `${place.place_name}<br/>${
       place.road_address_name || place.address_name
     }`;
     setClickedAddress(
@@ -196,7 +223,8 @@ const MapPage = () => {
         id: Date.now() + Math.random(),
         lat: coords.lat,
         lng: coords.lng,
-        info: addr,
+        address,
+        units: [{ unitNo: '1502' }],
         open: true,
       },
     ]);
@@ -217,30 +245,11 @@ const MapPage = () => {
         id: Date.now() + Math.random(),
         lat,
         lng,
-        info: '서울 금천구 시흥대로59길 9',
+        address: '서울 금천구 시흥대로59길 9',
+        units: [{ unitNo: '1502' }],
         open: true,
       },
     ]);
-  };
-
-  // 8x2 표 HTML 생성 함수
-  const makeTableHTML = () => {
-    let rows = '';
-    for (let i = 1; i <= 8; i++) {
-      rows += `
-      <tr>
-        <td style="width:32px;height:20px;">${i}</td>
-        <td style="width:32px;height:20px;">${i + 10}</td>
-      </tr>
-    `;
-    }
-    return `
-    <table border="1" style="border-collapse:collapse; margin-top:8px;">
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  `;
   };
 
   return (
@@ -268,32 +277,31 @@ const MapPage = () => {
           onMapLoad={handleMapLoad}
         />
         {mapObj &&
-          markers.map((m) => {
-            // 주소와 표를 content로 합침
-            const content = `
-              <div style="padding:8px 12px;">
-                ${m.info}
-                ${makeTableHTML()}
-              </div>
-            `;
-            return (
-              <MarkerInfo
-                key={m.id}
-                id={m.id}
-                map={mapObj}
-                lat={m.lat}
-                lng={m.lng}
-                info={content}
-                open={m.open}
-                onMarkerClick={() => handleMarkerClick(m.id)}
-                onInfoClose={() => handleInfoClose(m.id)}
-                color="red"
-              />
-            );
-          })}
+          markers.map((m) => (
+            <MarkerInfo
+              key={m.id}
+              id={m.id}
+              map={mapObj}
+              lat={m.lat}
+              lng={m.lng}
+              address={m.address}
+              units={m.units}
+              open={m.open}
+              onMarkerClick={() => handleMarkerClick(m.id)}
+              onInfoClose={() => handleInfoClose(m.id)}
+              onUnitClick={handleUnitClick}
+              color="red"
+            />
+          ))}
         <AddressDisplay
           centerAddr={centerAddr}
           clickedAddress={clickedAddress}
+        />
+        <UnitModal
+          open={modalOpen}
+          unitNo={selectedUnit}
+          unitData={unitData}
+          onClose={handleModalClose}
         />
       </div>
     </div>
