@@ -22,4 +22,6 @@ public class Property {
     private String lesseePhone;
     private String moveInDate;
     private String contractPeriod;
+    private double lat;
+    private double lng;
 }

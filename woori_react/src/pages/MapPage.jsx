@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import KakaoMap from '../components/Map/KakaoMap';
 import MarkerInfo from '../components/Map/MarkerInfo';
 import SearchBar from '../components/Search/SearchBar';
@@ -18,26 +18,50 @@ const MapPage = () => {
   const [autoList, setAutoList] = useState([]);
   const [autoActive, setAutoActive] = useState(false);
 
-  // 마커별 호수(유닛) 데이터 포함
-  const [markers, setMarkers] = useState([
-    {
-      id: Date.now(),
-      lat: INITIAL_CENTER.lat,
-      lng: INITIAL_CENTER.lng,
-      address: '서울 금천구 시흥대로59길 9',
-      units: [{ unitNo: '1502' }],
-      open: true,
-    },
-  ]);
+  // DB에서 받아온 매물로 만든 마커 데이터
+  const [markers, setMarkers] = useState([]);
 
   // 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [unitData, setUnitData] = useState(null);
 
+  // 1. 매물 데이터 fetch (async/await)
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await fetch('/api/properties');
+        const data = await res.json();
+        console.log('매물 데이터:', data);
+
+        // address/좌표별로 그룹핑
+        const markerMap = {};
+        data.forEach((p) => {
+          const key = `${p.address}_${p.lat}_${p.lng}`;
+          if (!markerMap[key]) {
+            markerMap[key] = {
+              id: key,
+              lat: p.lat,
+              lng: p.lng,
+              address: p.address,
+              units: [],
+              open: false,
+            };
+          }
+          markerMap[key].units.push({ _id: p._id, detail: p.detail });
+        });
+        setMarkers(Object.values(markerMap));
+      } catch (error) {
+        setSearchError('매물 데이터 불러오기 실패');
+        console.error(error);
+      }
+    };
+    fetchProperties();
+  }, []);
+
   // 모달 열기
-  const handleUnitClick = (unitNo) => {
-    setSelectedUnit(unitNo);
+  const handleUnitClick = (unitId) => {
+    setSelectedUnit(unitId);
     setModalOpen(true);
     setUnitData({
       tenant: '홍길동',
@@ -78,40 +102,6 @@ const MapPage = () => {
     };
     updateCenterAddr();
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
-
-    // 지도 클릭 시 마커 추가 (units는 예시로 추가)
-    window.kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-      const lat = mouseEvent.latLng.getLat();
-      const lng = mouseEvent.latLng.getLng();
-      const geocoder = new window.kakao.maps.services.Geocoder();
-      geocoder.coord2Address(lng, lat, function (result, status) {
-        let address = '';
-        if (status === window.kakao.maps.services.Status.OK) {
-          const road = result[0].road_address
-            ? `도로명주소: ${result[0].road_address.address_name}`
-            : '';
-          const jibun = result[0].address
-            ? `지번주소: ${result[0].address.address_name}`
-            : '';
-          address = [road, jibun].filter(Boolean).join('<br/>');
-          setClickedAddress([road, jibun].filter(Boolean).join(' / '));
-        } else {
-          address = '주소를 찾을 수 없습니다.';
-          setClickedAddress('주소를 찾을 수 없습니다.');
-        }
-        setMarkers((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            lat,
-            lng,
-            address,
-            units: [{ unitNo: '1502' }],
-            open: true,
-          },
-        ]);
-      });
-    });
   }, []);
 
   // 마커 클릭 시 인포윈도우 열기
@@ -128,7 +118,7 @@ const MapPage = () => {
     );
   };
 
-  // 검색 실행 함수
+  // 검색 실행 함수 (옵션: 검색 결과로 마커 추가)
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchError('');
@@ -159,6 +149,7 @@ const MapPage = () => {
             place.road_address_name || place.address_name
           }`
         );
+        // 검색 결과로 마커 추가 (units는 detail로)
         setMarkers((prev) => [
           ...prev,
           {
@@ -166,7 +157,7 @@ const MapPage = () => {
             lat: coords.lat,
             lng: coords.lng,
             address,
-            units: [{ unitNo: '1502' }],
+            units: [{ detail: '1502' }], // 예시, 실제 detail은 상황에 맞게
             open: true,
           },
         ]);
@@ -177,7 +168,7 @@ const MapPage = () => {
   };
 
   // 자동완성 추천 검색어
-  React.useEffect(() => {
+  useEffect(() => {
     if (
       !searchKeyword.trim() ||
       !window.kakao ||
@@ -224,7 +215,7 @@ const MapPage = () => {
         lat: coords.lat,
         lng: coords.lng,
         address,
-        units: [{ unitNo: '1502' }],
+        units: [{ detail: '1502' }], // 예시
         open: true,
       },
     ]);
@@ -246,7 +237,7 @@ const MapPage = () => {
         lat,
         lng,
         address: '서울 금천구 시흥대로59길 9',
-        units: [{ unitNo: '1502' }],
+        units: [{ detail: '1502' }], // 예시
         open: true,
       },
     ]);
