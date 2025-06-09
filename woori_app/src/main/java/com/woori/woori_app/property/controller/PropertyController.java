@@ -17,14 +17,27 @@ public class PropertyController {
     }
 
     @GetMapping
-    public List<Property> getAll() {
-        return propertyService.findAll();
+    public List<Property> getAllProperties() {
+        return propertyService.getAllProperties();
+    }
+
+    @GetMapping("/{id}")
+    public Property getPropertyById(@PathVariable String id) {
+        return propertyService.getPropertyById(id);
     }
 
     @PostMapping
-    public Property create(@RequestBody Property property) {
-        return propertyService.save(property);
+    public Property createProperty(@RequestBody Property property) {
+        return propertyService.createProperty(property);
     }
 
-    // 필요시 상세조회, 수정, 삭제 등 추가
+    @PutMapping("/{id}")
+    public Property updateProperty(@PathVariable String id, @RequestBody Property property) {
+        return propertyService.updateProperty(id, property);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteProperty(@PathVariable String id) {
+        propertyService.deleteProperty(id);
+    }
 }
