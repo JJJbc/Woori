@@ -22,7 +22,7 @@ public class PropertyController {
     }
 
     @GetMapping("/{id}")
-    public Property getPropertyById(@PathVariable String id) {
+    public Property getPropertyById(@PathVariable("id") String id) {
         return propertyService.getPropertyById(id);
     }
 
@@ -32,12 +32,12 @@ public class PropertyController {
     }
 
     @PutMapping("/{id}")
-    public Property updateProperty(@PathVariable String id, @RequestBody Property property) {
+    public Property updateProperty(@PathVariable("id") String id, @RequestBody Property property) {
         return propertyService.updateProperty(id, property);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteProperty(@PathVariable String id) {
+    public void deleteProperty(@PathVariable("id") String id) {
         propertyService.deleteProperty(id);
     }
 }

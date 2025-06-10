@@ -45,7 +45,7 @@ const SearchBar = ({
         borderRadius: '4px',
       }}
     >
-      금천구로 이동
+      사무실로 이동
     </button>
     {searchError && (
       <span style={{ color: 'red', marginLeft: '16px' }}>{searchError}</span>

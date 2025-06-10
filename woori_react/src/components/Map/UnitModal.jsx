@@ -1,7 +1,6 @@
 import React from 'react';
 import Modal from 'react-modal';
 
-// 반드시 한 번만 호출 (보통 index.js나 UnitModal.jsx 맨 위에서)
 Modal.setAppElement('#root');
 
 const customStyles = {
@@ -22,8 +21,7 @@ const customStyles = {
   },
 };
 
-const UnitModal = ({ open, unitNo, unitData, onClose }) => {
-  console.log('UnitModal open:', open, 'unitData:', unitData, 'unitNo:', unitNo);
+const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
   if (!open || !unitData) return null;
 
   const {
@@ -70,7 +68,25 @@ const UnitModal = ({ open, unitNo, unitData, onClose }) => {
         <p><strong>입주일:</strong> {moveInDate || '정보 없음'}</p>
         <p><strong>계약기간:</strong> {contractPeriod || '정보 없음'}</p>
       </div>
-      <button onClick={onClose}>닫기</button>
+      <div style={{ marginTop: 16 }}>
+  <button onClick={onClose} style={{ marginRight: 8 }}>닫기</button>
+  <button
+    style={{ marginRight: 8 }}
+    onClick={() => onEdit(unitData)}
+  >
+    수정하기
+  </button>
+  <button
+    style={{ color: 'white', background: 'red' }}
+    onClick={() => {
+      if (window.confirm('정말 삭제하시겠습니까?')) {
+        onDelete(id || _id);
+      }
+    }}
+  >
+    삭제하기
+  </button>
+      </div>
     </Modal>
   );
 };

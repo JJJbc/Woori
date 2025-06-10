@@ -34,10 +34,21 @@ public class PropertyService {
 
     public Property updateProperty(String id, Property updated) {
         Property property = getPropertyById(id);
-        // 필드 업데이트 로직
-        property.setAddress(updated.getAddress());
-        // ... 나머지 필드도 업데이트
-        return propertyRepository.save(property);
+    property.setAddress(updated.getAddress());
+    property.setDetail(updated.getDetail());
+    property.setRooms(updated.getRooms());
+    property.setBathrooms(updated.getBathrooms());
+    property.setArea(updated.getArea());
+    property.setDealType(updated.getDealType());
+    property.setPrice(updated.getPrice());
+    property.setLessor(updated.getLessor());
+    property.setLessorPhone(updated.getLessorPhone());
+    property.setLessee(updated.getLessee());
+    property.setLesseePhone(updated.getLesseePhone());
+    property.setMoveInDate(updated.getMoveInDate());
+    property.setContractPeriod(updated.getContractPeriod());
+    // 필요한 필드가 더 있다면 모두 추가
+    return propertyRepository.save(property);
     }
 
     public void deleteProperty(String id) {
