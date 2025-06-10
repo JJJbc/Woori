@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import KakaoMap from '../components/Map/KakaoMap';
-import MarkerInfo from '../components/Map/MarkerInfo';
+import MapContainer from '../components/Map/MapContainer';
 import SearchBar from '../components/Search/SearchBar';
 import AutoComplete from '../components/Search/AutoComplete';
 import AddressDisplay from '../components/Address/AddressDisplay';
@@ -18,23 +17,16 @@ const MapPage = () => {
   const [autoList, setAutoList] = useState([]);
   const [autoActive, setAutoActive] = useState(false);
 
-  // DB에서 받아온 매물로 만든 마커 데이터
   const [markers, setMarkers] = useState([]);
-
-  // 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [unitData, setUnitData] = useState(null);
 
-  // 1. 매물 데이터 fetch (async/await)
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         const res = await fetch('/api/properties');
         const data = await res.json();
-        console.log('매물 데이터:', data);
-
-        // address/좌표별로 그룹핑
         const markerMap = {};
         data.forEach((p) => {
           const key = `${p.address}_${p.lat}_${p.lng}`;
@@ -48,9 +40,10 @@ const MapPage = () => {
               open: false,
             };
           }
-          markerMap[key].units.push({ _id: p._id, detail: p.detail });
+          markerMap[key].units.push(p);
         });
         setMarkers(Object.values(markerMap));
+        console.log('markers 세팅:', Object.values(markerMap));
       } catch (error) {
         setSearchError('매물 데이터 불러오기 실패');
         console.error(error);
@@ -59,29 +52,34 @@ const MapPage = () => {
     fetchProperties();
   }, []);
 
-  // 모달 열기
-  const handleUnitClick = (unitId) => {
-    setSelectedUnit(unitId);
-    setModalOpen(true);
-    setUnitData({
-      tenant: '홍길동',
-      area: '84㎡',
-      etc: '입주일: 2024-01-01',
-    });
-  };
+  const handleUnitClick = useCallback((unitId) => {
+    console.log('handleUnitClick 호출', unitId);
+    let found = null;
+    for (const marker of markers) {
+      found = marker.units.find((u) => u._id === unitId || u.id === unitId);
+      if (found) break;
+    }
+    console.log('handleUnitClick found', found);
+    if (found) {
+      setUnitData(found);
+      setSelectedUnit(unitId);
+      setModalOpen(true);
+    } else {
+      setModalOpen(false);
+      setUnitData(null);
+      setSelectedUnit(null);
+    }
+  }, [markers]);
 
-  // 모달 닫기
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setModalOpen(false);
     setSelectedUnit(null);
     setUnitData(null);
-  };
+  }, []);
 
-  // 지도 로드 후 최초 1회만 mapObj 설정 및 이벤트 등록
   const handleMapLoad = useCallback((map) => {
     setMapObj((prev) => prev || map);
 
-    // 중심 주소 갱신 함수
     const updateCenterAddr = () => {
       const geocoder = new window.kakao.maps.services.Geocoder();
       const center = map.getCenter();
@@ -104,21 +102,18 @@ const MapPage = () => {
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
   }, []);
 
-  // 마커 클릭 시 인포윈도우 열기
-  const handleMarkerClick = (id) => {
+  const handleMarkerClick = useCallback((id) => {
     setMarkers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, open: true } : m))
     );
-  };
+  }, []);
 
-  // 인포윈도우 X버튼 클릭 시 닫기
-  const handleInfoClose = (id) => {
+  const handleInfoClose = useCallback((id) => {
     setMarkers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, open: false } : m))
     );
-  };
+  }, []);
 
-  // 검색 실행 함수 (옵션: 검색 결과로 마커 추가)
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchError('');
@@ -141,33 +136,17 @@ const MapPage = () => {
         const place = data[0];
         const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
         mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
-        const address = `${place.place_name}<br/>${
-          place.road_address_name || place.address_name
-        }`;
         setClickedAddress(
           `${place.place_name} / ${
             place.road_address_name || place.address_name
           }`
         );
-        // 검색 결과로 마커 추가 (units는 detail로)
-        setMarkers((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            lat: coords.lat,
-            lng: coords.lng,
-            address,
-            units: [{ detail: '1502' }], // 예시, 실제 detail은 상황에 맞게
-            open: true,
-          },
-        ]);
       } else {
         setSearchError('검색 결과가 없습니다.');
       }
     });
   };
 
-  // 자동완성 추천 검색어
   useEffect(() => {
     if (
       !searchKeyword.trim() ||
@@ -192,7 +171,6 @@ const MapPage = () => {
     });
   }, [searchKeyword]);
 
-  // 자동완성 클릭 시
   const handleAutoItemClick = (place) => {
     setSearchKeyword(place.place_name);
     setAutoActive(false);
@@ -202,26 +180,11 @@ const MapPage = () => {
     if (!mapObj) return;
     const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
     mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
-    const address = `${place.place_name}<br/>${
-      place.road_address_name || place.address_name
-    }`;
     setClickedAddress(
       `${place.place_name} / ${place.road_address_name || place.address_name}`
     );
-    setMarkers((prev) => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        lat: coords.lat,
-        lng: coords.lng,
-        address,
-        units: [{ detail: '1502' }], // 예시
-        open: true,
-      },
-    ]);
   };
 
-  // "금천구로 이동" 버튼 클릭 시
   const handleGotoGeumcheon = () => {
     setSearchError('');
     if (!window.kakao || !window.kakao.maps) return;
@@ -230,17 +193,6 @@ const MapPage = () => {
     const lng = 126.90018635707;
     mapObj.setCenter(new window.kakao.maps.LatLng(lat, lng));
     setClickedAddress('서울 금천구 시흥대로59길 9');
-    setMarkers((prev) => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        lat,
-        lng,
-        address: '서울 금천구 시흥대로59길 9',
-        units: [{ detail: '1502' }], // 예시
-        open: true,
-      },
-    ]);
   };
 
   return (
@@ -262,28 +214,15 @@ const MapPage = () => {
         />
       </SearchBar>
       <div style={{ position: 'relative' }}>
-        <KakaoMap
-          ref={mapRef}
+        <MapContainer
+          mapRef={mapRef}
           center={INITIAL_CENTER}
           onMapLoad={handleMapLoad}
+          markers={markers}
+          onMarkerClick={handleMarkerClick}
+          onInfoClose={handleInfoClose}
+          onUnitClick={handleUnitClick}
         />
-        {mapObj &&
-          markers.map((m) => (
-            <MarkerInfo
-              key={m.id}
-              id={m.id}
-              map={mapObj}
-              lat={m.lat}
-              lng={m.lng}
-              address={m.address}
-              units={m.units}
-              open={m.open}
-              onMarkerClick={() => handleMarkerClick(m.id)}
-              onInfoClose={() => handleInfoClose(m.id)}
-              onUnitClick={handleUnitClick}
-              color="red"
-            />
-          ))}
         <AddressDisplay
           centerAddr={centerAddr}
           clickedAddress={clickedAddress}
