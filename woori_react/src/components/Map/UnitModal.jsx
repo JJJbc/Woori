@@ -51,9 +51,8 @@ const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
       shouldCloseOnOverlayClick={true}
       shouldCloseOnEsc={true}
     >
-      <h2>{unitNo} 상세 정보</h2>
-      <div>
-        <p><strong>ID:</strong> {id || _id || '정보 없음'}</p>
+      <h2>{detail} 상세 정보</h2>
+      <div>        
         <p><strong>주소:</strong> {address || '정보 없음'}</p>
         <p><strong>상세:</strong> {detail || '정보 없음'}</p>
         <p><strong>방 개수:</strong> {rooms ?? '정보 없음'}</p>
@@ -67,6 +66,7 @@ const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
         <p><strong>임차인 연락처:</strong> {lesseePhone || '정보 없음'}</p>
         <p><strong>입주일:</strong> {moveInDate || '정보 없음'}</p>
         <p><strong>계약기간:</strong> {contractPeriod || '정보 없음'}</p>
+        <p><strong>메모:</strong> {unitData.memo || '정보 없음'}</p>
       </div>
       <div style={{ marginTop: 16 }}>
   <button onClick={onClose} style={{ marginRight: 8 }}>닫기</button>

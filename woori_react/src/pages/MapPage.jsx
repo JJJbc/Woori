@@ -9,28 +9,44 @@ import SearchBar from '../components/Search/SearchBar';
 import AutoComplete from '../components/Search/AutoComplete';
 import AddressDisplay from '../components/Address/AddressDisplay';
 
+
+const Marker = ({ map, lat, lng, onClick }) => {
+  useEffect(() => {
+    if (!map) return;
+    const marker = new window.kakao.maps.Marker({
+      position: new window.kakao.maps.LatLng(lat, lng),
+      map: map,
+    });
+    marker.addListener('click', onClick);
+    return () => {
+      marker.setMap(null);
+    };
+  }, [map, lat, lng, onClick]);
+  return null;
+};
+
 const INITIAL_CENTER = { lat: 37.45344955498, lng: 126.90018635707 };
 
 const MapPage = () => {
   const mapRef = useRef(null);
   const [mapObj, setMapObj] = useState(null);
 
-  // 지도/마커/오버레이/모달
+ 
   const [markers, setMarkers] = useState([]);
   const [openOverlayId, setOpenOverlayId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [unitData, setUnitData] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
 
-  // 유닛 추가 모달 관련 상태
+ 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addTargetMarker, setAddTargetMarker] = useState(null);
 
-  // 수정 모달 상태
+ 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editUnitData, setEditUnitData] = useState(null);
 
-  // 검색/자동완성/주소표시
+ 
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchError, setSearchError] = useState('');
   const [autoList, setAutoList] = useState([]);
@@ -38,7 +54,10 @@ const MapPage = () => {
   const [centerAddr, setCenterAddr] = useState('');
   const [clickedAddress, setClickedAddress] = useState('');
 
-  // 매물 데이터 불러오기
+
+  const [tempOverlay, setTempOverlay] = useState(null);
+
+
   const fetchProperties = useCallback(async () => {
     const res = await fetch('/api/properties');
     const data = await res.json();
@@ -63,7 +82,7 @@ const MapPage = () => {
     fetchProperties();
   }, [fetchProperties]);
 
-  // 지도 로드 및 중심 주소 표시
+
   const handleMapLoad = useCallback((map) => {
     setMapObj((prev) => prev || map);
 
@@ -89,17 +108,17 @@ const MapPage = () => {
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
   }, []);
 
-  // 마커 클릭 시 오버레이 열기
+
   const handleMarkerClick = (id) => {
     setOpenOverlayId(id);
   };
 
-  // 오버레이 닫기
+
   const handleOverlayClose = () => {
     setOpenOverlayId(null);
   };
 
-  // 유닛 클릭(상세 모달 오픈)
+
   const handleUnitClick = (unitId) => {
     let found = null;
     for (const marker of markers) {
@@ -113,25 +132,24 @@ const MapPage = () => {
     }
   };
 
-  // 모달 닫기
+ 
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedUnit(null);
     setUnitData(null);
   };
 
-  // 수정 버튼 클릭 시
+
   const handleEditUnit = (unit) => {
-    setModalOpen(false);       // 상세 모달 닫기
-  setSelectedUnit(null);
-  setUnitData(null);
-  setTimeout(() => {
-    setEditUnitData(unit);   // 수정 모달 열기
-    setEditModalOpen(true);
-  }, 0); // 비동기 처리로 자연스럽게 전환
+    setModalOpen(false);
+    setSelectedUnit(null);
+    setUnitData(null);
+    setTimeout(() => {
+      setEditUnitData(unit);
+      setEditModalOpen(true);
+    }, 0);
   };
 
-  // 수정 완료 시 (PUT 요청)
   const handleUpdateUnit = async (updatedUnit) => {
     await fetch(`/api/properties/${updatedUnit.id || updatedUnit._id}`, {
       method: 'PUT',
@@ -146,13 +164,13 @@ const MapPage = () => {
     fetchProperties();
   };
 
-  // "추가하기" 버튼 클릭 시
+
   const handleAddClick = (marker) => {
     setAddTargetMarker(marker);
     setAddModalOpen(true);
   };
 
-  // 유닛 추가 완료 시 (POST 요청)
+
   const handleAddUnit = async (newUnit) => {
     await fetch('/api/properties', {
       method: 'POST',
@@ -164,7 +182,7 @@ const MapPage = () => {
     fetchProperties();
   };
 
-  // 유닛 삭제 핸들러
+
   const handleDeleteUnit = async (id) => {
     await fetch(`/api/properties/${id}`, { method: 'DELETE' });
     setModalOpen(false);
@@ -173,7 +191,39 @@ const MapPage = () => {
     fetchProperties();
   };
 
-  // 검색 기능
+ 
+  useEffect(() => {
+    if (!mapObj) return;
+
+    const handleMapClick = (mouseEvent) => {
+      const lat = mouseEvent.latLng.getLat();
+      const lng = mouseEvent.latLng.getLng();
+
+     
+      const isMarkerHere = markers.some(
+        (m) =>
+          Math.abs(Number(m.lat) - lat) < 0.00001 &&
+          Math.abs(Number(m.lng) - lng) < 0.00001
+      );
+      if (isMarkerHere) return;
+
+     
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.coord2Address(lng, lat, function (result, status) {
+        if (status === window.kakao.maps.services.Status.OK) {
+          const address = result[0]?.address?.address_name || '';
+          setTempOverlay({ address, lat, lng });
+        }
+      });
+    };
+
+    window.kakao.maps.event.addListener(mapObj, 'click', handleMapClick);
+
+    return () => {
+      window.kakao.maps.event.removeListener(mapObj, 'click', handleMapClick);
+    };
+  }, [mapObj, markers]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchError('');
@@ -207,7 +257,7 @@ const MapPage = () => {
     });
   };
 
-  // 자동완성 기능
+
   useEffect(() => {
     if (
       !searchKeyword.trim() ||
@@ -232,7 +282,7 @@ const MapPage = () => {
     });
   }, [searchKeyword]);
 
-  // 자동완성 항목 클릭
+
   const handleAutoItemClick = (place) => {
     setSearchKeyword(place.place_name);
     setAutoActive(false);
@@ -247,7 +297,6 @@ const MapPage = () => {
     );
   };
 
-  // 금천구로 이동
   const handleGotoGeumcheon = () => {
     setSearchError('');
     if (!window.kakao || !window.kakao.maps) return;
@@ -309,6 +358,29 @@ const MapPage = () => {
               </CustomOverlayWrapper>
             </React.Fragment>
           ))}
+
+        {/* 지도 빈 곳 클릭 시 임시 오버레이 */}
+        {mapObj && tempOverlay && (
+          <CustomOverlayWrapper
+            map={mapObj}
+            position={{ lat: tempOverlay.lat, lng: tempOverlay.lng }}
+            open={!!tempOverlay}
+            onClose={() => setTempOverlay(null)}
+          >
+            <CustomOverlayInfo
+              address={tempOverlay.address}
+              units={[]} 
+              onUnitClick={() => {}}
+              onClose={() => setTempOverlay(null)}
+              onAddClick={() => {
+                setAddTargetMarker(tempOverlay);
+                setAddModalOpen(true);
+                setTempOverlay(null); 
+              }}
+            />
+          </CustomOverlayWrapper>
+        )}
+
         <UnitModal
           open={modalOpen}
           unitNo={selectedUnit}
@@ -337,19 +409,3 @@ const MapPage = () => {
 };
 
 export default MapPage;
-
-// 마커 컴포넌트
-const Marker = ({ map, lat, lng, onClick }) => {
-  useEffect(() => {
-    if (!map) return;
-    const marker = new window.kakao.maps.Marker({
-      position: new window.kakao.maps.LatLng(lat, lng),
-      map: map,
-    });
-    marker.addListener('click', onClick);
-    return () => {
-      marker.setMap(null);
-    };
-  }, [map, lat, lng, onClick]);
-  return null;
-};

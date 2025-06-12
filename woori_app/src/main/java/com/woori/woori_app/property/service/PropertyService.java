@@ -18,7 +18,7 @@ public class PropertyService {
     }
 
     public List<Property> getAllProperties() {
-        // 예: 정렬, 필터링 등 추가 로직 처리 가능
+        
         return propertyRepository.findAll();
     }
 
@@ -28,7 +28,7 @@ public class PropertyService {
     }
 
     public Property createProperty(Property property) {
-        // 예: 데이터 검증, 중복 체크 등
+        
         return propertyRepository.save(property);
     }
 
@@ -47,7 +47,7 @@ public class PropertyService {
     property.setLesseePhone(updated.getLesseePhone());
     property.setMoveInDate(updated.getMoveInDate());
     property.setContractPeriod(updated.getContractPeriod());
-    // 필요한 필드가 더 있다면 모두 추가
+    property.setMemo(updated.getMemo());
     return propertyRepository.save(property);
     }
 

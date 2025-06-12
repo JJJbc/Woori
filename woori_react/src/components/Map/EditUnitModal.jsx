@@ -16,6 +16,7 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
   const [lesseePhone, setLesseePhone] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [contractPeriod, setContractPeriod] = useState('');
+  const [memo, setMemo] = useState('');
 
   useEffect(() => {
     if (open && unitData) {
@@ -31,6 +32,7 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
       setLesseePhone(unitData.lesseePhone || '');
       setMoveInDate(unitData.moveInDate || '');
       setContractPeriod(unitData.contractPeriod || '');
+      setMemo(unitData.memo || '');      
     }
   }, [open, unitData]);
 
@@ -50,6 +52,7 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
       lesseePhone,
       moveInDate,
       contractPeriod,
+      memo,
     });
   };
 
@@ -122,10 +125,15 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
           <label>계약 기간: </label>
           <input value={contractPeriod} onChange={e => setContractPeriod(e.target.value)} />
         </div>
+        <div style={{ marginBottom: 8 }}>
+  <label>메모: </label>
+  <textarea value={memo} onChange={e => setMemo(e.target.value)} />
+</div>
         <div style={{ marginTop: 16 }}>
           <button type="submit" style={{ marginRight: 8 }}>수정</button>
           <button type="button" onClick={onClose}>취소</button>
         </div>
+        
       </form>
     </Modal>
   );

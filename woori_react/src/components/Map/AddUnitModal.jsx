@@ -16,8 +16,9 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
   const [lesseePhone, setLesseePhone] = useState('');
   const [moveInDate, setMoveInDate] = useState('');
   const [contractPeriod, setContractPeriod] = useState('');
+  const [memo, setMemo] = useState('');
 
-  // 모달이 열릴 때마다 입력값 초기화
+  
   useEffect(() => {
     if (open) {
       setDetail('');
@@ -32,6 +33,7 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
       setLesseePhone('');
       setMoveInDate('');
       setContractPeriod('');
+      setMemo('');
     }
   }, [open]);
 
@@ -53,8 +55,9 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
       contractPeriod,
       lat,
       lng,
+      memo,
     });
-    // 입력값 초기화(모달 닫힐 때도 초기화됨)
+    
   };
 
   return (
@@ -76,7 +79,7 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
       }}
       contentLabel="유닛 추가"
     >
-      <h2>유닛 추가</h2>
+      <h2>추가하기</h2>
       <div style={{ marginBottom: 12, color: '#333' }}>
         <b>주소:</b> {address}
       </div>
@@ -102,8 +105,8 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
           <input value={dealType} onChange={e => setDealType(e.target.value)} required />
         </div>
         <div style={{ marginBottom: 8 }}>
-          <label>가격(만원): </label>
-          <input type="number" value={price} onChange={e => setPrice(e.target.value)} required />
+          <label>가격: </label>
+          <input value={price} onChange={e => setPrice(e.target.value)} required />
         </div>
         <div style={{ marginBottom: 8 }}>
           <label>임대인: </label>
@@ -129,10 +132,15 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
           <label>계약 기간: </label>
           <input value={contractPeriod} onChange={e => setContractPeriod(e.target.value)} />
         </div>
+        <div style={{ marginBottom: 8 }}>
+          <label>메모: </label>
+          <textarea value={memo} onChange={e => setMemo(e.target.value)} />
+        </div>
         <div style={{ marginTop: 16 }}>
           <button type="submit" style={{ marginRight: 8 }}>추가</button>
           <button type="button" onClick={onClose}>취소</button>
         </div>
+        
       </form>
     </Modal>
   );

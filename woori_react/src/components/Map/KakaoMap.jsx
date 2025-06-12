@@ -9,7 +9,7 @@ const KakaoMap = React.forwardRef(({ center, onMapLoad }, ref) => {
   useEffect(() => {
     if (!ref.current || initialized.current) return;
 
-    // Kakao SDK 로드
+   
     const loadMap = () => {
       if (!window.kakao || !window.kakao.maps) return;
       window.kakao.maps.load(() => {

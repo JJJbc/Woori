@@ -5,9 +5,10 @@ const CustomOverlayInfo = ({
   units,
   onUnitClick,
   onClose,
-  onAddClick, // 추가
+  onAddClick,
 }) => (
   <div
+  onClick={e => e.stopPropagation()}
     style={{
       width: 240,
       background: '#fff',
@@ -56,7 +57,10 @@ const CustomOverlayInfo = ({
       추가하기
     </button>
     <button
-      onClick={onClose}
+      onClick={e => {
+    e.stopPropagation(); 
+    onClose();
+  }}
       style={{
         position: 'absolute',
         top: 8,

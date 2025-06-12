@@ -24,4 +24,5 @@ public class Property {
     private String contractPeriod;
     private String lat;
     private String lng;
+    private String memo;
 }
