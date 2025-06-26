@@ -23,4 +23,4 @@ yarn-debug.log*
 yarn-error.log*
 
 # KakaoMap 컴포넌트 파일 무시
-src/components/Map/KakaoMap.js
+src/components/Map/KakaoMap.jsx
