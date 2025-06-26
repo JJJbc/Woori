@@ -8,7 +8,7 @@ const CustomOverlayInfo = ({
   onAddClick,
 }) => (
   <div
-  onClick={e => e.stopPropagation()}
+    onClick={e => e.stopPropagation()}
     style={{
       width: 240,
       background: '#fff',
@@ -20,25 +20,36 @@ const CustomOverlayInfo = ({
     }}
   >
     <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{address}</div>
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-      {units.map((u) => (
-        <li key={u._id || u.id} style={{ marginBottom: 6 }}>
-          <button
-            style={{
-              color: 'blue',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              font: 'inherit',
-            }}
-            onClick={() => onUnitClick(u._id || u.id)}
-          >
-            <b>{u.detail}</b>
-          </button>
-        </li>
-      ))}
+    <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 240, overflowY: 'auto', }}
+      onWheel={e => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}>
+      
+      {[...units]
+        .sort((a, b) => {          
+          const numA = parseInt(a.detail);
+          const numB = parseInt(b.detail);
+          return numA - numB;
+        })
+        .map((u) => (
+          <li key={u._id || u.id} style={{ marginBottom: 6 }}>
+            <button
+              style={{
+                color: 'blue',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                font: 'inherit',
+              }}
+              onClick={() => onUnitClick(u._id || u.id)}
+            >
+              <b>{u.detail} {u.dealType}</b>
+            </button>
+          </li>
+        ))}
     </ul>
     <button
       onClick={onAddClick}
@@ -58,9 +69,9 @@ const CustomOverlayInfo = ({
     </button>
     <button
       onClick={e => {
-    e.stopPropagation(); 
-    onClose();
-  }}
+        e.stopPropagation();
+        onClose();
+      }}
       style={{
         position: 'absolute',
         top: 8,

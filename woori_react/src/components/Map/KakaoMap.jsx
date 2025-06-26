@@ -40,7 +40,7 @@ const KakaoMap = React.forwardRef(({ center, onMapLoad }, ref) => {
       ref={ref}
       style={{
         width: '100%',
-        height: '700px',
+        height: '900px',
         border: '2px solid #333',
       }}
     />

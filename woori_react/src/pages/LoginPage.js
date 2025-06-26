@@ -22,30 +22,101 @@ const LoginPage = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-      <form onSubmit={handleLogin} style={{ minWidth: 300, padding: 24, border: '1px solid #ccc', borderRadius: 8 }}>
-        <h2>로그인</h2>
-        <div style={{ marginBottom: 12 }}>
-          <input
-            placeholder="아이디"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8 }}
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8 }}
-          />
-        </div>
-        {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
-        <button type="submit" style={{ width: '100%', padding: 10 }}>로그인</button>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#e0e5ec',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <form
+        onSubmit={handleLogin}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          background: '#e0e5ec',
+          borderRadius: 20,
+          boxShadow: '10px 10px 20px #a3b1c6, -10px -10px 20px #ffffff',
+          padding: 30,
+          width: 320,
+        }}
+      >
+        <h1
+          style={{
+            marginBottom: 30,
+            fontWeight: 700,
+            color: '#333',
+            fontSize: 32,
+          }}
+        >
+          Woori Login
+        </h1>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          required
+          style={{
+            background: '#e0e5ec',
+            borderRadius: 20,
+            boxShadow:
+              'inset 10px 10px 20px #a3b1c6, inset -10px -10px 20px #ffffff',
+            border: 'none',
+            outline: 'none',
+            padding: '14px 20px',
+            marginBottom: 20,
+            fontSize: 16,
+            width: 240,
+            color: '#333',
+          }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          style={{
+            background: '#e0e5ec',
+            borderRadius: 20,
+            boxShadow:
+              'inset 10px 10px 20px #a3b1c6, inset -10px -10px 20px #ffffff',
+            border: 'none',
+            outline: 'none',
+            padding: '14px 20px',
+            marginBottom: 20,
+            fontSize: 16,
+            width: 240,
+            color: '#333',
+          }}
+        />
+        {error && (
+          <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>
+        )}
+        <button
+          type="submit"
+          style={{
+            background: '#e0e5ec',
+            borderRadius: 20,
+            boxShadow: '10px 10px 20px #a3b1c6, -10px -10px 20px #ffffff',
+            border: 'none',
+            padding: '14px 0',
+            width: 180,
+            fontSize: 16,
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            marginTop: 10,
+            color: '#333',
+          }}
+        >
+          Sign In
+        </button>
       </form>
     </div>
   );

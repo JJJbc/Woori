@@ -45,7 +45,7 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
       bathrooms: Number(bathrooms),
       area: Number(area),
       dealType,
-      price: Number(price),
+      price,
       lessor,
       lessorPhone,
       lessee,
@@ -99,7 +99,7 @@ const EditUnitModal = ({ open, onClose, unitData, onSubmit }) => {
         </div>
         <div style={{ marginBottom: 8 }}>
           <label>가격(만원): </label>
-          <input type="number" value={price} onChange={e => setPrice(e.target.value)} required />
+          <input value={price} onChange={e => setPrice(e.target.value)} required />
         </div>
         <div style={{ marginBottom: 8 }}>
           <label>임대인: </label>

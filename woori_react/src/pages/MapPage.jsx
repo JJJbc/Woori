@@ -9,7 +9,6 @@ import SearchBar from '../components/Search/SearchBar';
 import AutoComplete from '../components/Search/AutoComplete';
 import AddressDisplay from '../components/Address/AddressDisplay';
 
-
 const Marker = ({ map, lat, lng, onClick }) => {
   useEffect(() => {
     if (!map) return;
@@ -31,22 +30,18 @@ const MapPage = () => {
   const mapRef = useRef(null);
   const [mapObj, setMapObj] = useState(null);
 
- 
   const [markers, setMarkers] = useState([]);
   const [openOverlayId, setOpenOverlayId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [unitData, setUnitData] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
 
- 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addTargetMarker, setAddTargetMarker] = useState(null);
 
- 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editUnitData, setEditUnitData] = useState(null);
 
- 
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchError, setSearchError] = useState('');
   const [autoList, setAutoList] = useState([]);
@@ -54,9 +49,10 @@ const MapPage = () => {
   const [centerAddr, setCenterAddr] = useState('');
   const [clickedAddress, setClickedAddress] = useState('');
 
-
   const [tempOverlay, setTempOverlay] = useState(null);
 
+  // ★ 검색 결과 위치 상태 추가
+  const [searchResult, setSearchResult] = useState(null);
 
   const fetchProperties = useCallback(async () => {
     const res = await fetch('/api/properties');
@@ -81,7 +77,6 @@ const MapPage = () => {
   useEffect(() => {
     fetchProperties();
   }, [fetchProperties]);
-
 
   const handleMapLoad = useCallback((map) => {
     setMapObj((prev) => prev || map);
@@ -108,16 +103,13 @@ const MapPage = () => {
     window.kakao.maps.event.addListener(map, 'idle', updateCenterAddr);
   }, []);
 
-
   const handleMarkerClick = (id) => {
     setOpenOverlayId(id);
   };
 
-
   const handleOverlayClose = () => {
     setOpenOverlayId(null);
   };
-
 
   const handleUnitClick = (unitId) => {
     let found = null;
@@ -132,13 +124,11 @@ const MapPage = () => {
     }
   };
 
- 
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedUnit(null);
     setUnitData(null);
   };
-
 
   const handleEditUnit = (unit) => {
     setModalOpen(false);
@@ -164,12 +154,10 @@ const MapPage = () => {
     fetchProperties();
   };
 
-
   const handleAddClick = (marker) => {
     setAddTargetMarker(marker);
     setAddModalOpen(true);
   };
-
 
   const handleAddUnit = async (newUnit) => {
     await fetch('/api/properties', {
@@ -182,7 +170,6 @@ const MapPage = () => {
     fetchProperties();
   };
 
-
   const handleDeleteUnit = async (id) => {
     await fetch(`/api/properties/${id}`, { method: 'DELETE' });
     setModalOpen(false);
@@ -191,7 +178,6 @@ const MapPage = () => {
     fetchProperties();
   };
 
- 
   useEffect(() => {
     if (!mapObj) return;
 
@@ -199,7 +185,6 @@ const MapPage = () => {
       const lat = mouseEvent.latLng.getLat();
       const lng = mouseEvent.latLng.getLng();
 
-     
       const isMarkerHere = markers.some(
         (m) =>
           Math.abs(Number(m.lat) - lat) < 0.00001 &&
@@ -207,7 +192,6 @@ const MapPage = () => {
       );
       if (isMarkerHere) return;
 
-     
       const geocoder = new window.kakao.maps.services.Geocoder();
       geocoder.coord2Address(lng, lat, function (result, status) {
         if (status === window.kakao.maps.services.Status.OK) {
@@ -224,10 +208,12 @@ const MapPage = () => {
     };
   }, [mapObj, markers]);
 
+  // ★ 검색 함수 수정: 검색 결과에 임시 마커/오버레이 표시
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchError('');
     setAutoActive(false);
+
     if (!searchKeyword.trim()) {
       setSearchError('검색어를 입력하세요.');
       return;
@@ -240,6 +226,7 @@ const MapPage = () => {
       setSearchError('지도가 아직 준비되지 않았습니다.');
       return;
     }
+
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(searchKeyword, function (data, status) {
       if (status === window.kakao.maps.services.Status.OK && data.length > 0) {
@@ -247,16 +234,37 @@ const MapPage = () => {
         const coords = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
         mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
         setClickedAddress(
-          `${place.place_name} / ${
-            place.road_address_name || place.address_name
-          }`
+          `${place.place_name} / ${place.road_address_name || place.address_name}`
         );
+        setSearchResult({
+          lat: coords.lat,
+          lng: coords.lng,
+          label: place.place_name || searchKeyword,
+          address: place.road_address_name || place.address_name,
+        });
       } else {
-        setSearchError('검색 결과가 없습니다.');
+        // 키워드 검색 결과 없으면 주소 변환 시도
+        const geocoder = new window.kakao.maps.services.Geocoder();
+        geocoder.addressSearch(searchKeyword, function (result, status) {
+          if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
+            const addr = result[0];
+            const coords = { lat: parseFloat(addr.y), lng: parseFloat(addr.x) };
+            mapObj.setCenter(new window.kakao.maps.LatLng(coords.lat, coords.lng));
+            setClickedAddress(addr.address_name || searchKeyword);
+            setSearchResult({
+              lat: coords.lat,
+              lng: coords.lng,
+              label: addr.address_name || searchKeyword,
+              address: addr.address_name,
+            });
+          } else {
+            setSearchError('검색 결과가 없습니다.');
+            setSearchResult(null);
+          }
+        });
       }
     });
   };
-
 
   useEffect(() => {
     if (
@@ -282,7 +290,6 @@ const MapPage = () => {
     });
   }, [searchKeyword]);
 
-
   const handleAutoItemClick = (place) => {
     setSearchKeyword(place.place_name);
     setAutoActive(false);
@@ -295,6 +302,12 @@ const MapPage = () => {
     setClickedAddress(
       `${place.place_name} / ${place.road_address_name || place.address_name}`
     );
+    setSearchResult({
+      lat: coords.lat,
+      lng: coords.lng,
+      label: place.place_name,
+      address: place.road_address_name || place.address_name,
+    });
   };
 
   const handleGotoGeumcheon = () => {
@@ -305,6 +318,7 @@ const MapPage = () => {
     const lng = 126.90018635707;
     mapObj.setCenter(new window.kakao.maps.LatLng(lat, lng));
     setClickedAddress('서울 금천구 시흥대로59길 9');
+    setSearchResult(null);
   };
 
   return (
@@ -331,17 +345,17 @@ const MapPage = () => {
           centerAddr={centerAddr}
           clickedAddress={clickedAddress}
         />
+
+        {/* 기존 마커/오버레이 */}
         {mapObj &&
           markers.map((m) => (
             <React.Fragment key={m.id}>
-              {/* 마커 표시 */}
               <Marker
                 map={mapObj}
                 lat={m.lat}
                 lng={m.lng}
                 onClick={() => handleMarkerClick(m.id)}
               />
-              {/* 커스텀 오버레이 표시 */}
               <CustomOverlayWrapper
                 map={mapObj}
                 position={{ lat: m.lat, lng: m.lng }}
@@ -369,16 +383,68 @@ const MapPage = () => {
           >
             <CustomOverlayInfo
               address={tempOverlay.address}
-              units={[]} 
+              units={[]}
               onUnitClick={() => {}}
               onClose={() => setTempOverlay(null)}
               onAddClick={() => {
                 setAddTargetMarker(tempOverlay);
                 setAddModalOpen(true);
-                setTempOverlay(null); 
+                setTempOverlay(null);
               }}
             />
           </CustomOverlayWrapper>
+        )}
+
+        {/* ★ 검색 결과 위치에 임시 마커/오버레이 표시 */}
+        {mapObj && searchResult && (
+          <React.Fragment>
+            <Marker
+              map={mapObj}
+              lat={searchResult.lat}
+              lng={searchResult.lng}
+              onClick={() => {}}
+            />
+            <CustomOverlayWrapper
+              map={mapObj}
+              position={{ lat: searchResult.lat, lng: searchResult.lng }}
+              open={true}
+              onClose={() => setSearchResult(null)}
+            >
+              <div
+                style={{
+                  background: '#fff',
+                  border: '1px solid #888',
+                  borderRadius: 8,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  padding: 12,
+                  position: 'relative',
+                  minWidth: 180,
+                }}
+              >
+                <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                  {searchResult.label}
+                </div>
+                <div style={{ fontSize: 13, color: '#666' }}>
+                  {searchResult.address}
+                </div>
+                <button
+                  onClick={() => setSearchResult(null)}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    background: '#eee',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '2px 8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
+            </CustomOverlayWrapper>
+          </React.Fragment>
         )}
 
         <UnitModal
