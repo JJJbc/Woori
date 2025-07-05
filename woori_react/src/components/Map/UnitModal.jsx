@@ -21,6 +21,12 @@ const customStyles = {
   },
 };
 
+function formatDateTime(dtStr) {
+  if (!dtStr) return '정보 없음';
+  const date = new Date(dtStr);  
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
   if (!open || !unitData) return null;
 
@@ -40,6 +46,9 @@ const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
     lesseePhone,
     moveInDate,
     contractPeriod,
+    memo,
+    creDate,
+    upDate,
   } = unitData || {};
 
   return (
@@ -66,7 +75,9 @@ const UnitModal = ({ open, unitNo, unitData, onClose, onDelete, onEdit }) => {
         <p><strong>임차인 연락처:</strong> {lesseePhone || '정보 없음'}</p>
         <p><strong>입주일:</strong> {moveInDate || '정보 없음'}</p>
         <p><strong>계약기간:</strong> {contractPeriod || '정보 없음'}</p>
-        <p><strong>메모:</strong> {unitData.memo || '정보 없음'}</p>
+        <p><strong>메모:</strong> {memo || '정보 없음'}</p>
+        <p><strong>등록일:</strong> {formatDateTime(creDate)}</p>
+        <p><strong>수정일:</strong> {formatDateTime(upDate)}</p>
       </div>
       <div style={{ marginTop: 16 }}>
   <button onClick={onClose} style={{ marginRight: 8 }}>닫기</button>

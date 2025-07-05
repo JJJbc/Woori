@@ -1,6 +1,10 @@
 package com.woori.woori_app.property.domain;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 import lombok.Data;
 
@@ -25,4 +29,10 @@ public class Property {
     private String lat;
     private String lng;
     private String memo;
+    
+    @CreatedDate
+    private LocalDateTime creDate;
+
+    @LastModifiedDate
+    private LocalDateTime upDate;
 }

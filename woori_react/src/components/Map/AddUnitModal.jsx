@@ -46,7 +46,7 @@ const AddUnitModal = ({ open, onClose, onSubmit, address, lat, lng }) => {
       bathrooms: Number(bathrooms),
       area: Number(area),
       dealType,
-      price,
+      price: Number(price),
       lessor,
       lessorPhone,
       lessee,

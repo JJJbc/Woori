@@ -7,6 +7,7 @@ import com.woori.woori_app.property.repository.PropertyRepository;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -47,7 +48,7 @@ public class PropertyService {
     property.setLesseePhone(updated.getLesseePhone());
     property.setMoveInDate(updated.getMoveInDate());
     property.setContractPeriod(updated.getContractPeriod());
-    property.setMemo(updated.getMemo());
+    property.setMemo(updated.getMemo());    
     return propertyRepository.save(property);
     }
 
